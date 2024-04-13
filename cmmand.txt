@@ -1,0 +1,4 @@
+1、编译启动文件
+nasm -o mbr.bin mbr.S
+2、复制MBR文件到磁盘的开始位置
+sudo dd if=//home/chen/OS/boot/mbr.bin of=//home/bochs/bochs/bin/hd60M.img bs=512 count=1 conv=notrunc
