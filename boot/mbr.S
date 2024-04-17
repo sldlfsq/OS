@@ -1,7 +1,7 @@
 SECTION MBR vstart=0x7c00 ;起始地址编译在0x7c00,这个其实是这个计算是如何计算的作者也只是猜测的
     mov ax,cs
     mov ds,ax    ;数据段
-    mov es,ax
+    mov es,ax    ;扩展数据段
     mov ss,ax    ;栈段
     mov fs,ax    ;数据段
     mov sp,0x7c00
