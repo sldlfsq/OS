@@ -1,0 +1,51 @@
+%include "boot.inc"
+SECTION MBR vstart=LOADER_BASE_ADDR
+    mov byte [gs:0x00],0x00
+    mov byte [gs:0x01],0xA4
+
+    mov byte [gs:0x02],'L'
+    mov byte [gs:0x03],0xA4
+
+    mov byte [gs:0x04],'E'
+    mov byte [gs:0x05],0xA4
+
+    mov byte [gs:0x06],'T'
+    mov byte [gs:0x07],0xA4
+
+    mov byte [gs:0x08],'S'
+    mov byte [gs:0x09],0xA4
+
+    mov byte [gs:0x0A],' '
+    mov byte [gs:0x0B],0xA4
+
+    mov byte [gs:0x0C],'G'
+    mov byte [gs:0x0D],0xA4
+
+    mov byte [gs:0x0E],'O'
+    mov byte [gs:0x0F],0xA4
+
+    mov byte [gs:0x10],' '
+    mov byte [gs:0x11],0xA4
+
+    mov byte [gs:0x12],'L'
+    mov byte [gs:0x13],0xA4
+
+    mov byte [gs:0x14],'O'
+    mov byte [gs:0x15],0xA4
+
+    mov byte [gs:0x16],'A'
+    mov byte [gs:0x17],0xA4
+
+    mov byte [gs:0x18],'D'
+    mov byte [gs:0x19],0xA4
+
+    mov byte [gs:0x1A],'E'
+    mov byte [gs:0x1B],0xA4
+
+    mov byte [gs:0x1C],'R'
+    mov byte [gs:0x1D],0xA4
+
+    mov byte [gs:0x1E],'!'
+    mov byte [gs:0x1F],0xA4
+
+    jmp $
