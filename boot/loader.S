@@ -4,7 +4,7 @@ LOADER_STACK_TOP equ LOADER_BASE_ADDR     ;这个宏定义是什么意思呢？
 jmp loader_start
 
 
-;构建描述符
+;构建描述符，这里是数据段，代码会被放在内存中的数据段中
 GDT_BASE: dd 0x00000000
           dd 0x00000000
 
@@ -20,7 +20,7 @@ VIDEO_DESC: dd 0x80000007       ;显存的地址为0xb8000-0xbffff,段界限可�
 GDT_SIZE  equ $ - GDT_BASE      ;这里是为什么呢？
 GDT_LIMIT equ GDT_SIZE - 1
 
-times 60 dq 0  ;预留60个描述符的空位
+times 60 dq 0  ;预留60个描述符的空位，这里是编译器执行，而非CPU执行，可以认为这里就是在定义变量而已，变量会被放在什么地方呢？应该是数据段
 
 ;段选择子
 SELECTOR_CODE  equ (0x0001<<3) + TI_GDT + RPL0 ;全局描述符第一个就是代码段
@@ -43,7 +43,7 @@ loader_start:
     mov es,ax                               ;通过ax 赋值给es
     mov ax,0x1301                           ;ah = 13 al = 0x1
     mov bx,0x001f                           ;页码属性 可以不管
-    mov dx,0x1800                           ;dh = 0x18 == 24 意思是最后一行 0列开始
+    mov dx,0x0200                           ;dh = 0x18 == 24 意思是最后一行 0列开始
     int 0x10
 ;-----------------准备进入保护模式---------------------
     ;打开A20总线
@@ -74,5 +74,5 @@ p_mode_start:
     mov gs,ax
 
     mov byte [gs:160],'h'
-    mov byte [gs:161],'e'
+    mov byte [gs:162],'e'
     jmp $     ;死循环
