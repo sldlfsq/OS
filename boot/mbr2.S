@@ -59,10 +59,10 @@ SECTION MBR vstart=0x7c00 ;起始地质编译在0x7c00
     mov eax,LOADER_START_SECTOR ;这个值是多少呢？,eax是存储的输送的信息，扇区的开始地址
     mov bx,LOADER_BASE_ADDR     ;内存存储的是目标位置
 
-    mov cx,1                    ;读取磁盘数 cx常作计数
+    mov cx,4                    ;读取磁盘数 cx常作计数
 
-    ;mov esi,eax                 ;备分al
-    ;mov di,cx                   ;备分扇区数
+    ;mov esi,eax                ;备分al
+    ;mov di,cx                  ;备分扇区数
 
     call rd_disk_m_16           ;执行完之后直接跳转
     jmp LOADER_BASE_ADDR
@@ -105,13 +105,13 @@ rd_disk_m_16:
     ;配置device寄存器为LBA模式，并且选中磁盘0
     mov dx,0x1f7
     mov al,0x20
-    out dx,al     ;这里其实不太清楚，为什么读命令为0x20
+    out dx,al      ;这里其实不太清楚，为什么读命令为0x20
 
     ;检查硬盘是否正常工作
 .not_ready:
     nop ;过渡一下，常用的操作
-    in al,dx      ;从寄存器中读出数据
-    and al,0x88   ;相当于if判断
+    in  al,dx      ;从寄存器中读出数据
+    and al,0x88    ;相当于if判断
     cmp al,0x08
     jnz .not_ready
 
@@ -123,11 +123,11 @@ rd_disk_m_16:
     mov dx,0x1f0   ;需要读取的地址
 
  .go_read_loop:
-    in ax,dx       ;两字节dx 一次读两字
+    in  ax,dx       ;两字节dx 一次读两字
     mov [bx],ax
     add bx,2
     loop .go_read_loop
-    ret            ;与call 配对返回原来的位置 跳转到call下一条指令，表示函数结束
+    ret             ;与call 配对返回原来的位置 跳转到call下一条指令，表示函数结束
 
     times 510 - ($ - $$) db 0
     db 0x55,0xaa

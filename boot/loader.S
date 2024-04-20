@@ -1,51 +1,78 @@
 %include "boot.inc"
-SECTION MBR vstart=LOADER_BASE_ADDR
-    mov byte [gs:0x00],0x00
-    mov byte [gs:0x01],0xA4
+section loader vstart=LOADER_BASE_ADDR
+LOADER_STACK_TOP equ LOADER_BASE_ADDR     ;这个宏定义是什么意思呢？
+jmp loader_start
 
-    mov byte [gs:0x02],'L'
-    mov byte [gs:0x03],0xA4
 
-    mov byte [gs:0x04],'E'
-    mov byte [gs:0x05],0xA4
+;构建描述符
+GDT_BASE: dd 0x00000000
+          dd 0x00000000
 
-    mov byte [gs:0x06],'T'
-    mov byte [gs:0x07],0xA4
+CODE_DESC: dd 0x0000ffff
+           dd DESC_CODE_HIGH4
 
-    mov byte [gs:0x08],'S'
-    mov byte [gs:0x09],0xA4
+DATA_STACK_DESC: dd 0x0000FFFF
+                 dd DESC_DATA_HIGH4
 
-    mov byte [gs:0x0A],' '
-    mov byte [gs:0x0B],0xA4
+VIDEO_DESC: dd 0x80000007       ;显存的地址为0xb8000-0xbffff,段界限可以容易得出为07fff/4k = 7
+            dd DESC_VIDEO_HIGH4
 
-    mov byte [gs:0x0C],'G'
-    mov byte [gs:0x0D],0xA4
+GDT_SIZE  equ $ - GDT_BASE      ;这里是为什么呢？
+GDT_LIMIT equ GDT_SIZE - 1
 
-    mov byte [gs:0x0E],'O'
-    mov byte [gs:0x0F],0xA4
+times 60 dq 0  ;预留60个描述符的空位
 
-    mov byte [gs:0x10],' '
-    mov byte [gs:0x11],0xA4
+;段选择子
+SELECTOR_CODE  equ (0x0001<<3) + TI_GDT + RPL0 ;全局描述符第一个就是代码段
+SELECTOR_DATA  equ (0x0002<<3) + TI_GDT + RPL0 ;全局描述符第二个就是数据段
+SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0 ;全局描述符第二个就是显存段
 
-    mov byte [gs:0x12],'L'
-    mov byte [gs:0x13],0xA4
+;GDT指针
 
-    mov byte [gs:0x14],'O'
-    mov byte [gs:0x15],0xA4
+gdt_ptr dw GDT_LIMIT
+        dd GDT_BASE
 
-    mov byte [gs:0x16],'A'
-    mov byte [gs:0x17],0xA4
+loadermsg db 'loader in real.'
+;-----------------显示字符串---------------------
+loader_start:
+;使用功能号为13的来打印字符串
+    mov sp,LOADER_BASE_ADDR					;这里疑惑了我许久 es我们没有初始化 值究竟是多 为什么等于cs
+    mov bp,loadermsg                        ;es:bp 字符串地址 ah 功能号 bh 页码 bl 属性 cx 字符串长度
+    mov cx,16
+    mov ax,cs                               ;于是我还是向把es给初始化了一下 保证心里面有底
+    mov es,ax                               ;通过ax 赋值给es
+    mov ax,0x1301                           ;ah = 13 al = 0x1
+    mov bx,0x001f                           ;页码属性 可以不管
+    mov dx,0x1800                           ;dh = 0x18 == 24 意思是最后一行 0列开始
+    int 0x10
+;-----------------准备进入保护模式---------------------
+    ;打开A20总线
+    in al,0x92
+    or al,0000_0010B
+    out 0x92,al
 
-    mov byte [gs:0x18],'D'
-    mov byte [gs:0x19],0xA4
+    ;加载GDT
+    lgdt [gdt_ptr]
 
-    mov byte [gs:0x1A],'E'
-    mov byte [gs:0x1B],0xA4
+    ;打开保护模式
+    mov eax,cr0                              ;cr0寄存器第0位设置位1
+    or  eax,0x00000001
+    mov cr0,eax
 
-    mov byte [gs:0x1C],'R'
-    mov byte [gs:0x1D],0xA4
+;-----------------已经打开保护模式，开始32位寻址---------------------
+    jmp dword SELECTOR_CODE:p_mode_start     ;SELECTOR_CODE为段选择子，p_mode_start为偏移地址
 
-    mov byte [gs:0x1E],'!'
-    mov byte [gs:0x1F],0xA4
+[bits 32] ;代表以下代码为32位
+p_mode_start:
+    ;设置寄存器的初始状态，我也不知道为什么要设置
+    mov ax,SELECTOR_DATA
+    mov ds,ax
+    mov es,ax
+    mov ss,ax
+    mov esp,LOADER_STACK_TOP
+    mov ax,SELECTOR_VIDEO
+    mov gs,ax
 
-    jmp $
+    mov byte [gs:160],'h'
+    mov byte [gs:161],'e'
+    jmp $     ;死循环

@@ -1,4 +1,7 @@
 1、编译启动文件
 nasm -o mbr.bin mbr.S
+指定头文件的编译
+nasm -I include/ -o mbr.bin mbr.S
 2、复制MBR文件到磁盘的开始位置
 sudo dd if=//home/chen/OS/boot/mbr2.bin of=//home/bochs/bochs/bin/hd60M.img bs=512 count=1 conv=notrunc
+sudo dd if=//home/chen/OS/boot/loader.bin of=//home/bochs/bochs/bin/hd60M.img bs=512 count=1 seek=2 conv=notrunc
