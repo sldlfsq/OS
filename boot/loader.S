@@ -1,7 +1,7 @@
 %include "boot.inc"
 section loader vstart=LOADER_BASE_ADDR
 LOADER_STACK_TOP equ LOADER_BASE_ADDR     ;这个宏定义是什么意思呢？
-jmp loader_start
+jmp loader_start                          ;这里的地址是0x00
 
 
 ;构建描述符，这里是数据段，代码会被放在内存中的数据段中
@@ -20,9 +20,10 @@ VIDEO_DESC: dd 0x80000007       ;显存的地址为0xb8000-0xbffff,段界限可�
 GDT_SIZE  equ $ - GDT_BASE      ;这里是为什么呢？，宏定义在编译时就会被替换，不占用内存
 GDT_LIMIT equ GDT_SIZE - 1
 
-times 60 dq 0x1111         ;预留60个描述符的空位，这里是编译器执行，而非CPU执行，可以认为这里就是在定义变量而已，变量会被放在什么地方呢？应该是数据段
+times 59 dq 0x0         ;预留60个描述符的空位，这里是编译器执行，而非CPU执行，可以认为这里就是在定义变量而已，变量会被放在什么地方呢？应该是数据段
+times 5 db 0
 
-total_mem_bytes dd 0x2b147b98  ;上面占了512个字节，所以这里的偏移地址就是0x203
+total_mem_bytes dd 0x0  ;上面占了512个字节，所以这里的偏移地址就是0x200
 ;GDT指针
 
 gdt_ptr dw GDT_LIMIT
@@ -39,7 +40,6 @@ SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0 ;全局描述符第二个就是�
 loadermsg db 'loader in real.'
 
 loader_start:
-
 ;-----------------显示内存，0xE820功能号---------------------
     xor ebx,ebx                             ;异或清零
     mov edx,0x534d4150
@@ -94,7 +94,7 @@ loader_start:
     lgdt [gdt_ptr]
 
     ;打开保护模式
-    mov eax,cr0                              ;cr0寄存器第0位设置位1
+    mov eax,cr0                             ;cr0寄存器第0位设置位1
     or  eax,0x00000001
     mov cr0,eax
 
@@ -111,7 +111,83 @@ p_mode_start:
     mov esp,LOADER_STACK_TOP
     mov ax,SELECTOR_VIDEO
     mov gs,ax
+    mov byte [gs:162], 'C'
 
-    mov byte [gs:160],'h'
-    mov byte [gs:162],'e'
+;-----------------启用分页机制---------------------
+    call setup_page             ;使用创建页目录表和页表初始化
+
+    sgdt [gdt_ptr]              ;将描述符表地址加入到内存gdt_ptr中，一会儿用新地址重新加载
+
+    ;加载显示存储器段地址
+    mov ebx, [gdt_ptr+2]      ;这个是GDT_BASE
+    or dword [ebx+0x18+4], 0xc0000000   ;相当于段地址的最高位加C？   这里是干麻呢？
+
+    add dword [gdt_ptr+2], 0xc0000000 ;全局描述符放到内核中去
+    add esp, 0xc0000000         ;将栈指针同样映射到内核地址
+
+    mov eax, PAGE_DIR_TABLE_POS ;将页目录地址赋值给cr3
+    mov cr3, eax
+    ;打开cr0的PG位
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax
+
+
+    lgdt [gdt_ptr]              ;重新加载段基地址，由于GDT开启分页之后，地址会改变，所以这里加载新的地址
+
+    mov byte [gs:160], 'V'
+
     jmp $     ;死循环
+
+;-----------------以下是函数部分---------------------
+
+
+;-----------------设置页表项和页表目录---------------------
+setup_page:
+    ;首先就是对也表目录项进行清零
+    mov ecx,4096                                             ;循环4096次 将页目录项清空 内存清0
+    mov esi,0
+.clear_page_dir_mem:                                          ;dir directory 把页目录项清空
+    mov byte [PAGE_DIR_TABLE_POS+esi],0
+    inc esi
+    loop .clear_page_dir_mem
+
+;创建页目录项 PDE
+.create_pde:
+    mov eax,PAGE_DIR_TABLE_POS
+    add eax,0x1000                     ;第一个起始页表的开始位置
+    mov ebx,eax                        ;此处为 ebx 赋值，是为.create_pte 做准备，ebx 为基址
+
+    or eax,PG_US_U | PG_RW_W | PG_P    ;设置页表属性 |最低特权级|可读写|存在
+
+    mov [PAGE_DIR_TABLE_POS + 0x0],eax ;在第一个页表目录相的地方填入页表的位置和属性
+    mov [PAGE_DIR_TABLE_POS + 0xc00],eax ;这里为什么这么做我还是存在疑问，为啥要在这里写入相同的地址呢？ Question-2024/4/24
+    sub eax,0x1000
+    mov [PAGE_DIR_TABLE_POS+4092],eax  ;最后一个页目录项指向页目录自己
+    ;这里是进行了计算的，是由于内核亚要存放在用户空间的一个G里面，剩下的三个G是给用户空间的
+    ;0x0——3G是用户空间
+
+;建立页表项PTE 一个页表相里面包含1024个页地址
+    mov ecx,256                         ;这里是将1M内存分割成每页的大小
+    mov esi,0                           ;循环地址自加
+    mov edx,PG_US_U | PG_RW_W | PG_P    ;属性为 7，US=1，RW=1，P=1
+.create_pte:
+    mov [ebx+esi*4],edx                 ;这里为什么要*4呢？这是由于页目录项和页表项是12位的，所以要左移4位
+    add edx,4096
+    inc esi
+    loop .create_pte
+
+;加载内核其他的页表的PDE
+    mov eax, PAGE_DIR_TABLE_POS
+    add eax, 0x2000                     ;此时 eax 为第二个页表的位置
+    or eax, PG_US_U | PG_RW_W | PG_P    ;页目录项的属性 US､ RW 和 P 位都为 1
+    mov ebx, PAGE_DIR_TABLE_POS
+    mov ecx, 254                        ;范围为第769～1022的所有目录项数量 内核是从769 - 1023的，这里没有换算成线性地址
+    mov esi, 769
+.create_kernel_pde:
+    mov [ebx+esi*4], eax
+    inc esi
+    add eax, 0x1000
+    loop .create_kernel_pde
+
+    ret
