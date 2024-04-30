@@ -67,3 +67,9 @@ PG_RW_R equ 00b
 PG_RW_W equ 10b
 PG_US_S equ 000b
 PG_US_U equ 100b
+
+;---------------- 加载到内核相关地址处 --------------
+KERNEL_START_SECTOR  equ 0x9
+KERNEL_BIN_BASE_ADDR equ 0x70000
+KERNEL_ENTER_ADDR    equ 0xc0001500     ;这里是为什么呢？
+PT_NULL              equ 0x0            ;这个用于判断是否使用了段头表（elf文件中的表格）
