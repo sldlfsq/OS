@@ -37,7 +37,7 @@ SELECTOR_CODE  equ (0x0001<<3) + TI_GDT + RPL0 ;全局描述符第一个就是�
 SELECTOR_DATA  equ (0x0002<<3) + TI_GDT + RPL0 ;全局描述符第二个就是数据段
 SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0 ;全局描述符第二个就是显存段
 
-loadermsg db 'loader in real.'
+loadermsg db 'welcome to kernel.'
 
 loader_start:
 ;-----------------显示内存，0xE820功能号---------------------
@@ -77,7 +77,7 @@ loader_start:
 ;使用功能号为13的来打印字符串
     mov sp,LOADER_BASE_ADDR					;这里疑惑了我许久 es我们没有初始化 值究竟是多 为什么等于cs
     mov bp,loadermsg                        ;es:bp 字符串地址 ah 功能号 bh 页码 bl 属性 cx 字符串长度
-    mov cx,16
+    mov cx,18
     mov ax,cs                               ;于是我还是向把es给初始化了一下 保证心里面有底
     mov es,ax                               ;通过ax 赋值给es
     mov ax,0x1301                           ;ah = 13 al = 0x1
@@ -111,14 +111,12 @@ p_mode_start:
     mov esp,LOADER_STACK_TOP
     mov ax,SELECTOR_VIDEO
     mov gs,ax
-    mov byte [gs:162], 'C'
 ;-----------------加载内核，将磁盘中的内核移到内存的0x70000地址处---------------------
     mov eax, KERNEL_START_SECTOR  ;kernel.bin 所在的扇区号
     mov ebx, KERNEL_BIN_BASE_ADDR ;加载到内核的指定位置
     mov ecx, 200                   ;直接读取200个扇区
 
-    call rd_disk_m_32            ;这个函数目前暂时未实现
-    mov byte [gs:162], 'E'
+    call rd_disk_m_32
 ;-----------------启用分页机制---------------------
     call setup_page             ;使用创建页目录表和页表初始化
 
@@ -141,11 +139,10 @@ p_mode_start:
 
     lgdt [gdt_ptr]              ;重新加载段基地址，由于GDT开启分页之后，地址会改变，所以这里加载新的地址
 
-    mov byte [gs:160], 'V'
-
     jmp SELECTOR_CODE:enter_kernel
 enter_kernel:
     call kernel_init
+    call set_cursor_newline     ;为了显示换行使用
     mov esp,0xc009f000          ;9f00-9fbff作为栈地址
     jmp KERNEL_ENTER_ADDR
 ;-----------------以下是函数部分---------------------
@@ -316,3 +313,29 @@ rd_disk_m_32:
     add ebx,2
     loop .go_read_loop
     ret             ;与call 配对返回原来的位置 跳转到call下一条指令，表示函数结束
+
+
+set_cursor_newline:
+   push dx
+   push ax
+   ;将光标设为bx值
+   ;1.先设置高8位
+   mov dx,0x03d4           ;索引寄存器
+   mov al,0x0e             ;光标位置高8位
+   out dx,al
+   mov dx,0x03d5           ;通过读写数据端口0x3d5来获得或设置光标位置
+   mov al,0x00
+   out dx,al
+
+   ;2.再设置低8位
+   mov dx,0x03d4
+   mov al,0x0f
+   out dx,al
+   mov dx,0x03d5
+   mov al,0xf0
+   out dx,al
+   pop ax
+   pop dx
+   ret
+
+   

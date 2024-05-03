@@ -27,31 +27,10 @@ SECTION MBR vstart=0x7c00 ;起始地质编译在0x7c00
     ;这里使用段跨越前缀，GS代替默认的数据段DS
     mov byte [gs:0x00],'Y'     ;低位字节储存ascii字符 小端储存内存顺序相反
     mov byte [gs:0x01],0x24    ;背景储存在第二个字节 含字符与背景属性
-
-    mov byte [gs:0x02],'A'
-    mov byte [gs:0x03],0x24
-
-    mov byte [gs:0x04],'N'
-    mov byte [gs:0x05],0x24
-
-    mov byte [gs:0x06],'J'
-    mov byte [gs:0x07],0x24
-
-    mov byte [gs:0x08],'I'
-    mov byte [gs:0x09],0x24
-
-    mov byte [gs:0x0A],'C'
-    mov byte [gs:0x0B],0x24
-
-    mov byte [gs:0x0C],'H'
-    mov byte [gs:0x0D],0x24
-
-    mov byte [gs:0x0E],'E'
-    mov byte [gs:0x0F],0x24
-
-    mov byte [gs:0x10],'N'
-    mov byte [gs:0x11],0x24
-
+    mov byte [gs:0x02],'J'     ;低位字节储存ascii字符 小端储存内存顺序相反
+    mov byte [gs:0x03],0x24    ;背景储存在第二个字节 含字符与背景属性
+    mov byte [gs:0x04],'!'     ;低位字节储存ascii字符 小端储存内存顺序相反
+    mov byte [gs:0x05],0x24    ;背景储存在第二个字节 含字符与背景属性
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;以下是新增部分 4-18
 ;;;;;;;;;;;;;;;;;;;;;;;;;
