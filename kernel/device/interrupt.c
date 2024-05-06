@@ -31,8 +31,56 @@ static struct gate_desc idt[IDT_DESC_CNT];  // IDT是中断描述符表，本质
 
 extern intr_handler intr_entry_table[IDT_DESC_CNT];  // 声明引用定义在kernel.S中的中断处理函数入口数组,但是这个返回值是什么意思呢？
 
+//定义默认的中断处理程序
+typedef void (*interrupt_handler)(uint8_t vec_nr);
+interrupt_handler interrupt_handler_table[IDT_DESC_CNT];
+char* interrput_name[IDT_DESC_CNT];
+// 默认的中断处理函数
+static void  default_handler(uint8_t vec_nr) {
+    if (vec_nr == 0x27 || vec_nr == 0x2f) {
+        return;
+    }
+        // put_str("default_handler\n");
+        // put_str("int vector: 0x");
+        // put_int(vec_nr);
+        // put_char('\n');
+}
+//初始化默认的中断处理函数
+static void init_default_handler() {
+    int i;
+    for (i = 0; i < IDT_DESC_CNT; ++i) {
+        interrupt_handler_table[i] = default_handler;
+        interrput_name[i] = "unknown name";
+    }
+    interrput_name[0] = "#DE Divide Error";
+    interrput_name[1] = "#DB Debug Exception";
+    interrput_name[2] = "NMI Interrupt";
+    interrput_name[3] = "#BP Breakpoint Exception";
+    interrput_name[4] = "#OF Overflow Exception";
+    interrput_name[5] = "#BR BOUND Range Exceeded Exception";
+    interrput_name[6] = "#UD Invalid Opcode Exception";
+    interrput_name[7] = "#NM Device Not Available Exception";
+    interrput_name[8] = "#DF Double Fault Exception";
+    interrput_name[9] = "Coprocessor Segment Overrun";
+    interrput_name[10] = "#TS Invalid TSS Exception";
+    interrput_name[11] = "#NP Segment Not Present";
+    interrput_name[12] = "#SS Stack Fault Exception";
+    interrput_name[13] = "#GP General Protection Exception";
+    interrput_name[14] = "#PF Page-Fault Exception";
+    // intr_name[15] 第15项是intel保留项，未使用
+    interrput_name[16] = "#MF x87 FPU Floating-Point Error";
+    interrput_name[17] = "#AC Alignment Check Exception";
+    interrput_name[18] = "#MC Machine-Check Exception";
+    interrput_name[19] = "#XF SIMD Floating-Point Exception";
+}
+//注册中断处理函数
+void interrupt_reg(uint8_t vec_nr, interrupt_handler function, char* name) {
+    interrupt_handler_table[vec_nr] = function;
+    interrput_name[vec_nr] = name;
+}
+
 /* 初始化可编程中断控制器8259A */
-static void pic_init(void) {
+ static void pic_init(void) {
     /*初始化主片*/
     outb(PIC_M_CTRL, 0x11);     // ICW1: 边沿触发,级联 8259, 需要 ICW4
     outb(PIC_M_DATA, 0x20);     // ICW2: 起始中断向量号为 0x20——0x27
@@ -75,7 +123,7 @@ void idt_init() {
     put_str("idt_init start\n");
     idt_desc_init();  // 初始化中断描述符表
     pic_init();  // 初始化PIC(8259A)
-
+    init_default_handler();  // 初始化默认的中断处理函数
     /*加载idt*/
     // sizeof(idt) - 1 这个是中断描述符的大小，(uint64_t)(uint32_t)idt << 16 这个是idt的起始地址
     uint64_t idt_operand = ((sizeof(idt) - 1) | ((uint64_t)(uint32_t)idt << 16));
