@@ -7,12 +7,14 @@
 #include "print.h"
 #include "init.h"
 #include "timer.h"
+#include "interrupt.h"
+#include "debug.h"
 int main()
 {
     put_str("i am kernel\n");
     init_all();
-    timer_init();
-    asm volatile("sti");  // 为演示中断处理,在此临时开中断
+    ASSERT(1==2);
+    // (void)interrupt_set_status(INTERRUPT_ON);
     while(1);
     return 0;
 }
