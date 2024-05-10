@@ -337,5 +337,3 @@ set_cursor_newline:
    pop ax
    pop dx
    ret
-
-   
