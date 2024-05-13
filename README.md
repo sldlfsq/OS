@@ -20,4 +20,3 @@ p(a,b)即可；
 void MyFunction(..., int (*p)(int,int),....)
 2、函数指针可以作为返回值
 这个不清楚有什么用
-
