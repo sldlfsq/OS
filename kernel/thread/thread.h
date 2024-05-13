@@ -1,9 +1,9 @@
 #ifndef __THREAD_THREAD_H
 #define __THREAD_THREAD_H
 #include "stdint.h"
-
+#include "list.h"
 /* 自定义通用函数类型，它将在很多线程程序中作为参数类型 */
-typedef void thread_func(void*);
+typedef void (*thread_func)(void*);
 
 /* 进程或线程状态 */
 enum task_status {
@@ -59,7 +59,7 @@ struct thread_stack {
 
     /* 线程第一次执行时，eip指向待调用的函数kernel_thread
      * 其它时候，eip是指向switch_to的返回地址 */
-    void (*eip)(thread_func* func, void* func_arg);
+    void (*eip)(thread_func func, void* func_arg);
 
     /****** 以下仅供第一次被调度上cpu时使用 ******/
 
@@ -67,21 +67,56 @@ struct thread_stack {
     //这里是一个难点，为什么需要加一个占位的呢？
     //这里是通过ret调用的函数，所以需要一个返回地址，这个地址是在调用函数的时候压入的
     void (*unused_retaddr);
-    thread_func* function;  // 由kernel_thread所调用的函数名
+    thread_func function;  // 由kernel_thread所调用的函数名
     void* func_arg;  // 由kernel_thread所调用的函数所需的参数
 };
+
+/* 进程或线程的pcb，程序控制块 */
+// struct task_struct {
+//     uint32_t* self_kstack;  // 各内核线程都有自己的内核栈
+//     enum task_status status;
+//     uint8_t priority;  // 线程优先级
+//     char name[16];
+
+//     uint32_t ticks;
+//     //CPU运行的滴答数，用于时间片轮转调度
+//     uint32_t elapsed_ticks;
+//     //维护任务就绪链表的节点
+//     struct list_elem general_tag;
+//     //记录就绪链表的头节点
+//     struct list_elem all_list_tag;
+
+//     uint32_t* pgdir;  // 进程自己页表的虚拟地址
+//     uint32_t stack_magic;  // 栈的边界标记，用于检测栈的溢出
+// };
 
 /* 进程或线程的pcb，程序控制块 */
 struct task_struct {
     uint32_t* self_kstack;  // 各内核线程都有自己的内核栈
     enum task_status status;
-    uint8_t priority;  // 线程优先级
     char name[16];
+    uint8_t priority;  // 线程优先级
+
+    uint32_t ticks;
+    //CPU运行的滴答数，用于时间片轮转调度
+    uint32_t elapsed_ticks;
+
+
+    //维护任务就绪链表的节点
+    struct list_elem general_tag;
+    //记录就绪链表的头节点
+    struct list_elem all_list_tag;
+
+    uint32_t* pgdir;  // 进程自己页表的虚拟地址
     uint32_t stack_magic;  // 栈的边界标记，用于检测栈的溢出
 };
 
-static void kernel_thread(thread_func* function, void* func_arg);
+void kernel_thread(thread_func function, void* func_arg);
 void thread_create(struct task_struct* pthread, thread_func function, void* func_arg);
 void init_thread(struct task_struct* pthread, char* name, int prio);
 struct task_struct* thread_start(char* name, int prio, thread_func function, void* func_arg);
+struct task_struct* running_thread_pcb(void);
+void schedule(void);
+void schedule_irq(uint8_t vec_nr);
+void thread_init(void);
 #endif

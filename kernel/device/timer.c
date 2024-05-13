@@ -7,6 +7,7 @@
 #include "interrupt.h"
 #include "io.h"
 #include "print.h"
+#include "thread.h"
 
 #define IRQ0_FREQUENCY 100
 #define INPUT_FREQUENCY 1193180
@@ -28,6 +29,7 @@ void frequency_set(uint8_t counter_port, uint8_t counter_no, uint8_t rwl, uint8_
 void timer_init(void) {  //将时钟中断为100hz
     put_str("timer_init start!\n");
     frequency_set(COUNTER0_PORT, COUNTER0_NO, READ_WRITE_LATCH, COUNTER_MODE, COUNTER0_VALUE);
+    interrupt_register(0x20, schedule_irq, "schedule_irq");
     put_str("timer_init done!\n");
     return;
 }

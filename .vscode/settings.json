@@ -2,6 +2,10 @@
     "files.associations": {
         "interrupt.h": "c",
         "debug.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "list.h": "c",
+        "functional": "c",
+        "memory.h": "c",
+        "thread": "c"
     }
 }

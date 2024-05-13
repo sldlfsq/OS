@@ -13,4 +13,5 @@ void init_all() {
     idt_init();  // 初始化中断
     timer_init();
     mem_init();//内存池初始化
+    thread_init();
 }

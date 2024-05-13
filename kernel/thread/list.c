@@ -1,6 +1,8 @@
 #include "list.h"
 #include "stdint.h"
 #include "interrupt.h"
+#include "string.h"
+#include "debug.h"
 
 /* 初始化双向链表list */
 void list_init(struct list* list) {
@@ -12,7 +14,7 @@ void list_init(struct list* list) {
 
 /* 把链表元素elem插入在元素before之前 */
 void list_insert_before(struct list_elem* before, struct list_elem* elem) {
-    enum interrupt_status old_status = interrupt_disable();
+    interrupt_status old_status = interrupt_disable();
 
     /* 将before前驱元素的后继元素更新为elem，暂时使before脱离链表 */
     before->prev->next = elem;
@@ -35,12 +37,12 @@ void list_push(struct list* plist, struct list_elem* elem) {
 
 /* 追加元素到列表队尾，类似于队列的先进先出操作 */
 void list_append(struct list* plist, struct list_elem* elem) {
-    list_insert_before(plist->tail, elem);  // 在队尾前面插入elem
+    list_insert_before(&plist->tail, elem);  // 在队尾前面插入elem
 }
 
 /* 使元素pelem脱离链表 */
 void list_remove(struct list_elem* pelem) {
-    enum interrupt_status old_status = interrupt_disable();
+    interrupt_status old_status = interrupt_disable();
 
     pelem->prev->next = pelem->next;
     pelem->next->prev = pelem->prev;

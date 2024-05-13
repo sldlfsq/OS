@@ -8,6 +8,8 @@
 #include "interrupt.h"
 #include "io.h"
 #include "stdint.h"
+#include "thread.h"
+#include "print.h"
 
 /*******关于芯片寄存器的定义*********/
 #define PIC_M_CTRL 0x20  // 主片的控制端口是0x20
@@ -15,7 +17,7 @@
 #define PIC_S_CTRL 0xa0  // 从片的控制端口是0xa0
 #define PIC_S_DATA 0xa1  // 从片的数据端口是0xa1
 
-#define IDT_DESC_CNT 33  // 目前总共支持的中断数，这里定义了  0-0x20 共33个中断
+#define IDT_DESC_CNT 33  // 目前总共支持的中断数，这里定义了  0-0x20 共33个中断，0x20为始终中断
 
 #define EFLAGS_IF 0x00000200  // eflags寄存器中的if位为1
 //=g 是通用约束，编译器可以自由选择合适的方式来处理存储操作
@@ -51,7 +53,7 @@ extern intr_handler intr_entry_table[IDT_DESC_CNT];  // 声明引用定义在ker
     outb(PIC_S_DATA, 0x01);     // ICW4: 8086 模式，正常 EOI
 
     /*打开主片上IR0，也就是目前只接受时钟产生的中断*/
-    outb(PIC_M_DATA, 0xfe);    // 0xfe = 1111 1110，只打开时钟中断
+    outb(PIC_M_DATA, 0xfe);    // 0xfe = 1111 1110，只打开时钟中断，中断号为0x20
     outb(PIC_S_DATA, 0xff);    // 屏蔽掉从片上外设的所有中断
 
     put_str("pic_init done\n");
@@ -80,17 +82,47 @@ static void idt_desc_init(void) {
 interrupt_handler interrupt_handler_table[IDT_DESC_CNT];  // 中断处理函数数组
 char* interrput_name[IDT_DESC_CNT];  // 中断名称数组
 // 默认的中断处理函数
-static void default_handler(uint8_t vec_nr) {
-    if (vec_nr == 0x27 || vec_nr == 0x2f) {
-        return;
+void default_handler(uint8_t vec_nr) {
+    // if (vec_nr == 0x27 || vec_nr == 0x2f) {
+    //     return;
+    // }
+    // put_str("handler\n");
+    // put_str("int vector: 0x");
+    // put_int(vec_nr);
+    // put_char('\n');
+    // interrupt_disable();  // 关中断
+    if (vec_nr == 0x27 || vec_nr == 0x2f) {  // 0x2f是从片8259A上的最后一个irq引脚，保留
+        return;  // IRQ7和IRQ15会产生伪中断(spurious interrupt),无须处理。
     }
-    put_str("default_handler\n");
-    put_str("int vector: 0x");
-    put_int(vec_nr);
-    put_char('\n');
+
+    /* 将光标置为0，从屏幕左上角清出一片打印异常信息的区域，方便阅读 */
+    set_cursor(0);
+    int cursor_pos = 0;
+    while (cursor_pos < 320) {
+        put_char(' ');
+        ++cursor_pos;
+    }
+
+    set_cursor(0);  // 重置光标为屏幕左上角
+    put_str("!!!!!     excetion message begin     !!!!!\n");
+    set_cursor(88);
+    // put_str("int vector: 0x");
+    put_str(interrput_name[vec_nr]);
+    if (vec_nr == 14) {  // 若为page_fault，将缺失的地址打印出来并悬停
+        int page_fault_vaddr = 0;
+        asm("movl %%cr2,%0" : "=r"(page_fault_vaddr));  // cr2是存放page_fault的地址
+        put_str("\npage fault addr is ");
+        put_int(page_fault_vaddr);
+    }
+    put_str("\n!!!!!     excetion message end     !!!!!");
+    // 能进入中断处理程序就表示已经处在关中断情况下
+    // 不会出现调度进程的情况。故下面的死循环不会再被中断
+    while (1){
+        put_str("default_handler\n");
+    }
 }
 // 初始化默认的中断处理函数
-static void init_default_handler() {
+void init_default_handler() {
     int i;
     for (i = 0; i < IDT_DESC_CNT; ++i) {
         interrupt_handler_table[i] = default_handler;
