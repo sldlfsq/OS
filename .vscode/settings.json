@@ -6,6 +6,8 @@
         "list.h": "c",
         "functional": "c",
         "memory.h": "c",
-        "thread": "c"
+        "thread": "c",
+        "sync.h": "c",
+        "console.h": "c"
     }
 }

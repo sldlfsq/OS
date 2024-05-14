@@ -17,7 +17,7 @@
 #define PIC_S_CTRL 0xa0  // 从片的控制端口是0xa0
 #define PIC_S_DATA 0xa1  // 从片的数据端口是0xa1
 
-#define IDT_DESC_CNT 33  // 目前总共支持的中断数，这里定义了  0-0x20 共33个中断，0x20为始终中断
+#define IDT_DESC_CNT 0x21  // 目前总共支持的中断数，这里定义了  0-0x20 共33个中断，0x20为时钟中断
 
 #define EFLAGS_IF 0x00000200  // eflags寄存器中的if位为1
 //=g 是通用约束，编译器可以自由选择合适的方式来处理存储操作
@@ -83,18 +83,12 @@ interrupt_handler interrupt_handler_table[IDT_DESC_CNT];  // 中断处理函数�
 char* interrput_name[IDT_DESC_CNT];  // 中断名称数组
 // 默认的中断处理函数
 void default_handler(uint8_t vec_nr) {
-    // if (vec_nr == 0x27 || vec_nr == 0x2f) {
-    //     return;
-    // }
-    // put_str("handler\n");
-    // put_str("int vector: 0x");
-    // put_int(vec_nr);
-    // put_char('\n');
-    // interrupt_disable();  // 关中断
+
     if (vec_nr == 0x27 || vec_nr == 0x2f) {  // 0x2f是从片8259A上的最后一个irq引脚，保留
         return;  // IRQ7和IRQ15会产生伪中断(spurious interrupt),无须处理。
     }
 
+    interrupt_disable();  // 关中断
     /* 将光标置为0，从屏幕左上角清出一片打印异常信息的区域，方便阅读 */
     set_cursor(0);
     int cursor_pos = 0;
@@ -117,9 +111,7 @@ void default_handler(uint8_t vec_nr) {
     put_str("\n!!!!!     excetion message end     !!!!!");
     // 能进入中断处理程序就表示已经处在关中断情况下
     // 不会出现调度进程的情况。故下面的死循环不会再被中断
-    while (1){
-        put_str("default_handler\n");
-    }
+    while (1);
 }
 // 初始化默认的中断处理函数
 void init_default_handler() {
@@ -182,7 +174,7 @@ interrupt_status interrupt_disable() {
     interrupt_status old_status;
     if (INTERRUPT_ON == interrupt_get_status()) {
         old_status = INTERRUPT_ON;
-        asm volatile("cli" ::: "memory");//刷新内存的数据，它强制编译器在 CLI 指令执行前刷新内存中的数据，防止编译器对 CLI 指令进行优化或重排序。
+        asm volatile("cli");//刷新内存的数据，它强制编译器在 CLI 指令执行前刷新内存中的数据，防止编译器对 CLI 指令进行优化或重排序。
         return old_status;
     } else {
         old_status = INTERRUPT_OFF;
@@ -207,5 +199,6 @@ void idt_init() {
     // sizeof(idt) - 1 这个是中断描述符的大小，(uint64_t)(uint32_t)idt << 16 这个是idt的起始地址
     uint64_t idt_operand = ((sizeof(idt) - 1) | ((uint64_t)(uint32_t)idt << 16));
     asm volatile("lidt %0" ::"m"(idt_operand));
+    // interrupt_disable();
     put_str("idt_init done\n");
 }

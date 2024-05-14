@@ -1,6 +1,6 @@
-TI_GDT equ 0               ;定义段选择子相关权限
-RPL0   equ 0               ;定义RPL位，这个和安全相关
-SELECTOR_VIDEO equ (0x0003<<3)+TI_GDT+RPL0   ;定义显示器的段选择子
+TI_GDT equ 0
+RPL0   equ 0
+SELECTOR_VIDEO equ (0x0003<<3)+TI_GDT+RPL0
 
 section .data
 put_int_buffer dq 0        ;定义8字节缓冲区用于数字到字符的转换
@@ -18,41 +18,39 @@ put_char:
 
    ;获取当前光标位置
    ;先获取高8位
-   mov dx,0x03d4            ;由于要对显示器的光标进行设置，选择Address Register的端口地址为0x3D4
-   mov al,0x0e              ;al为选择的地址索引，该地址对应的是光标的高八位
+   mov dx,0x03d4
+   mov al,0x0e
    out dx,al
-   mov dx,0x03d5            ;选择读取的寄存器的地址
-   in al,dx                 ;从该地址中读取相应的高八位的值
-   mov ah,al                ;将该值保存到ah中
+   mov dx,0x03d5
+   in al,dx
+   mov ah,al
    ;再获取低8位
    mov dx,0x03d4
    mov al,0x0f
    out dx,al
    mov dx,0x03d5
    in al,dx
-   mov bx,ax                ;将光标存入bx
 
-   ;--------------读出数值------------------------
-   ;若为控制字符，则进行相应的操作，如换行，删除，空格等
-   ;若为其他字符，则直接进行输出即可
-   mov ecx,[esp+36]         ;pushad压入4*8=32B，加上主调函数4B的返回地址，故esp+36B
-
-   cmp cl,0xd               ;CR是0x0d，LF是0x0a CR是回车，LF是换行的意思
+   ;将光标存入bx
+   mov bx,ax
+   mov ecx,[esp+36]        ;pushad压入4*8=32B，加上主调函数4B的返回地址，故esp+36B
+   cmp cl,0xd              ;CR是0x0d，LF是0x0a
    jz .is_carriage_return
    cmp cl,0xa
    jz .is_line_feed
+
    cmp cl,0x8              ;BS(backspace)的ASCII码是8
    jz .is_backspace
    jmp .put_other
 
 .is_backspace:
-   dec bx                  ;这里为什么要减少1呢，这是由于回车就是删除的意思
+   dec bx
    shl bx,1                ;光标左移1位等于乘2，表示光标对应显存中的偏移字节
    mov byte [gs:bx],0x20   ;将待删除的字节补为0或空格皆可
    inc bx
-   mov byte [gs:bx],0x07   ;设置背景格式
+   mov byte [gs:bx],0x07
    shr bx,1
-   jmp set_cursor         ;设置光标格式
+   jmp set_cursor
 
 .put_other:
    shl bx,1                ;光标位置用2字节表示，将光标值*2表示对应显存中的偏移字节
@@ -62,8 +60,8 @@ put_char:
    shr bx,1                ;恢复老光标值
    inc bx                  ;下一个光标值
    cmp bx,2000
-   jl set_cursor          ;若光标值小于2000，表示未写到显存的最后，则去设置新的光>标值，若超出屏幕字符大小（2000），则换行处理
-;这里回车换行是一起处理的，当满屏时，其实也是相当于回车换行，美区别
+   jl set_cursor          ;若光标值小于2000，表示未写到显存的最后，则去设置新的光标值，若超出屏幕字符大小（2000），则换行处理
+
 .is_line_feed:             ;换行符LF(\n)
 .is_carriage_return:       ;回车符CR(\r)
    ;如果是CR(\r)，只要把光标移到行首就行了
@@ -79,7 +77,7 @@ put_char:
 .is_line_feed_end:         ;若是LF(\n)，将光标移+80即可
    jl set_cursor
 
-   ;屏幕行范围是0~24，滚屏的原理是将屏幕第1~24行搬运到第0~23行，再将第23行用空格填>充
+   ;屏幕行范围是0~24，滚屏的原理是将屏幕第1~24行搬运到第0~23行，再将第23行用空格填充
 .roll_screen:              ;若超出屏幕大小，滚屏
    cld
    mov ecx,960             ;2000-80=1920个字符，共1920*2=3840B，一次搬4B，共3840/4=960次
@@ -119,19 +117,20 @@ set_cursor:
    popad
    ret
 
-
-;----------------打印字符串 ---------------
+   ;--------------------- put_str -----------------------
+   ;-- 功能描述：通过put_char来打印以0字符结尾的字符串 --
+   ;-----------------------------------------------------
 global put_str:
 put_str:
-   push ebx                  ;使用ebx，来记录字符串的地址
-   push ecx                  ;使用ecx，来记录打印的值
+   push ebx
+   push ecx
    xor ecx,ecx
    mov ebx,[esp+12]
 .put_char_loop:
    mov cl,[ebx]
-   cmp cl,0                  ;判断是否是结束的字符串，默认会结尾/0
+   cmp cl,0
    jz .str_over
-   push ecx                  ;将待打印的数据压入栈中
+   push ecx
    call put_char
    add esp,4
    inc ebx
@@ -141,7 +140,9 @@ put_str:
    pop ebx
    ret
 
-;----------------打印整数，不知道有沙用 ---------------
+   ;--------------------- put_int ---------------------
+   ;--功能描述：将小端字节序的数字变成对应的ASCII后，倒置
+   ;----------------------------------------------------
 global put_int
 put_int:
    pushad
@@ -162,6 +163,7 @@ put_int:
 .is_A2F:
    sub edx,10
    add edx,'A'             ;减去10等于A～F的字符序+'A'得ASCII码
+
 .store:
    mov [ebx+edi],dl        ;此时dl中是数字对应字符的ASCII码
    dec edi

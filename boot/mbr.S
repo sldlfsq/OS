@@ -1,45 +1,112 @@
-SECTION MBR vstart=0x7c00 ;起始地址编译在0x7c00,这个其实是这个计算是如何计算的作者也只是猜测的
+;这个文件是直接对显存进行操作
+
+%include "boot.inc";包含头文件
+SECTION MBR vstart=0x7c00 ;起始地质编译在0x7c00
     mov ax,cs
-    mov ds,ax    ;数据段
-    mov es,ax    ;扩展数据段
-    mov ss,ax    ;栈段
-    mov fs,ax    ;数据段
+    mov ds,ax
+    mov es,ax     ; es为段寄存器，存放额外的数据段
+    mov ss,ax
+    mov fs,ax
     mov sp,0x7c00
-    ;这个时候 ds = es = ss = 0 栈指针指向MBR开始位置
+    mov ax,0xb800 ; ax为文本信号起始区,也就是显示的内存区域
+    mov gs,ax     ; gs = ax 充当段基址的作用，显示存储的段地址
 
-
-    ;ah = 0x06 al = 0x00 想要调用int 0x06的BIOS提供的中断对应的函数 即向上移动即完成清屏功能
-    ;cx dx 分别存储左上角与右下角的左边 详情看int 0x06函数调用
-    mov ax,0x600
-    mov bx,0x700
-    mov cx,0
-    mov dx,0x184f
+    ;ah = 0x06 al = 0x00 想要调用int 0x10的BIOS提供的中断对应的函数 即向上移动即完成清屏功能
+    ;cx dx 分别存储左上角与右下角的左边 详情看int 0x06功能号
+    ;这里是用寄存器来存储中断调用时的参数
+    mov ax,0600h  ; 清屏
+    mov bx,0700h  ; 设置屏幕大小信息
+    mov cx,0      ; 文本滚动行数开始位置
+    mov dx,184fh  ; 结束位置
 
     ;调用BIOS中断
-    int 0x10
+    int 0x10      ; 对屏幕操作的指令
 
-    mov ah,3
-    mov bh,0
+    ;新增功能 直接操作显存部分
+    ;预设输出yanji.chen
+    ;这里使用段跨越前缀，GS代替默认的数据段DS
+    mov byte [gs:0x00],'Y'     ;低位字节储存ascii字符 小端储存内存顺序相反
+    mov byte [gs:0x01],0x24    ;背景储存在第二个字节 含字符与背景属性
+    mov byte [gs:0x02],'J'     ;低位字节储存ascii字符 小端储存内存顺序相反
+    mov byte [gs:0x03],0x24    ;背景储存在第二个字节 含字符与背景属性
+    mov byte [gs:0x04],'!'     ;低位字节储存ascii字符 小端储存内存顺序相反
+    mov byte [gs:0x05],0x24    ;背景储存在第二个字节 含字符与背景属性
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;以下是新增部分 4-18
+;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;用来存函数的入口参数
+    mov eax,LOADER_START_SECTOR ;这个值是多少呢？,eax是存储的输送的信息，扇区的开始地址
+    mov bx,LOADER_BASE_ADDR     ;内存存储的是目标位置
 
-    ;获取光标位置 需要打印信息
-    int 0x10
+    mov cx,4                    ;读取磁盘数 cx常作计数
 
-    mov ax,message
-    mov bp,ax
+    ;mov esi,eax                ;备分al
+    ;mov di,cx                  ;备分扇区数
 
-    mov cx,5
-    mov ax,0x1301
+    call rd_disk_m_16           ;执行完之后直接跳转
+    jmp LOADER_BASE_ADDR
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;读取硬盘扇区操作函数
+;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-    mov bx,0x71;白底蓝字好cooi
+    ;下面是对磁盘操作的部分
+rd_disk_m_16:
 
-    int 0x10 ;写字符串
+    mov esi,eax                 ;备分al,这里备份的是地址
+    mov di,cx                   ;备分扇区数
 
-    jmp $ ;无限循环 一直跳转到当前命令位置
+    mov dx,0x1f2
+    mov al,cl   ;将要读取的扇区数设置在相应的寄存器中
+    out dx,al   ;将扇区的开始地址放入到
 
-    ;字符串声明 db == define byte dw == define word ascii一个字符占一个字节
-    message db "1 MBR start work"
+    mov eax,esi ;这里是恢复相应的寄存器
 
-    ;预留两个字节 其余空余的全部用0填满 为使检测当前扇区最后两字节为0x55 0xaa 检测是否为有效扇区
-    ;510 = 512字节-2预留字节  再减去（当前位置偏移量-段开始位置偏移量）求出来的是剩余空间
-    times 510 - ($ - $$) db 0 ;times 主要用于填充空间、重复定义数据或其他类似的场景
+    ;设置相应的地址寄存器
+    mov dx,0x1f3
+    out dx,al
+
+    mov cx,0x8
+    shr eax,cl  ;将扇区的地址右移动8位
+    mov dx,0x1f4
+    out dx,al
+
+    shr eax,cl
+    mov dx,0x1f5
+    out dx,al
+
+
+    shr eax,cl
+    and al,0xf
+    or  al,0xe0
+    mov dx,0x1f6
+    out dx,al
+
+    ;配置device寄存器为LBA模式，并且选中磁盘0
+    mov dx,0x1f7
+    mov al,0x20
+    out dx,al      ;这里其实不太清楚，为什么读命令为0x20
+
+    ;检查硬盘是否正常工作
+.not_ready:
+    nop ;过渡一下，常用的操作
+    in  al,dx      ;从寄存器中读出数据
+    and al,0x88    ;相当于if判断
+    cmp al,0x08
+    jnz .not_ready
+
+    ;读取数据，这里首先确定循环次数
+    mov ax,di      ;把 di 储存的cx 取出来，这里是要读取几个硬盘
+    mov dx,256     ;每次读出来2个字节，
+    mul dx         ;与di 与 ax 做乘法 计算一共需要读多少次 方便作循环 低16位放ax 高16位放dx
+    mov cx,ax      ;loop 与 cx相匹配 cx-- 当cx == 0即跳出循环
+    mov dx,0x1f0   ;需要读取的地址
+
+ .go_read_loop:
+    in  ax,dx       ;两字节dx 一次读两字
+    mov [bx],ax
+    add bx,2
+    loop .go_read_loop
+    ret             ;与call 配对返回原来的位置 跳转到call下一条指令，表示函数结束
+
+    times 510 - ($ - $$) db 0
     db 0x55,0xaa

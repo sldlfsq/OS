@@ -1,118 +1,147 @@
-/*
- * Author: yanji
- * File: string.c
- * Description: 实现字符串操作的函数
- * Date: 2024/5/6
- */
-#include "string.h"
 #include "debug.h"
 #include "global.h"
+#include "stdint.h"
+/**
+ * 同C类库同名函数.
+ */
+void memset(void* address, uint8_t value, uint32_t size) {
+    ASSERT(address != NULL);
 
-//将起始地址为dst_的size个字节置为value
-void memset(void* dst_,uint8_t value,uint32_t size)
-{
-    ASSERT(dst_ != NULL);
-    uint8_t* dst = (uint8_t*) dst_;
-    while((size--) > 0)
-        *(dst++) = value;
-    return;
-}
-
-void memcpy(void* dst_,const void* src_,uint32_t size)
-{
-    ASSERT(dst_ != NULL && src_ != NULL);
-    uint8_t* dst = dst_;
-    const uint8_t* src = src_;
-    //size--和--size的值
-    //这种的话应该从左往右读，比如size--，先size，然后再用size--的值
-    while((size--) > 0)
-        *(dst++) = *(src++);
-    return;
-}
-
-//比较两个字符串是否相同
-int memcmp(const void* a_,const void* b_, uint32_t size)
-{
-    const char* a = a_;
-    const char* b = b_;
-    ASSERT(a != NULL || b != NULL);
-    while((size--) > 0)
-    {
-        if(*a != *b)    return (*a > *b) ? 1 : -1;
-       ++a,++b;
+    uint8_t* addr = (uint8_t*)address;
+    while (size-- > 0) {
+        *addr++ = value;
     }
-    return 0;
 }
 
-char* strcpy(char* dsc_,const char* src_)
-{
-    ASSERT(dsc_ != NULL && src_ != NULL);
-    char* dsc = dsc_;
-    //这里的*src_是为了判断src_是否为空，是先赋值在进行判断
-    //当*src = ‘\0’时，赋值结束
-    while((*(dsc_++) = *(src_++) ));
-    return dsc;
-}
+/**
+ * 内存拷贝.
+ */
+void memcpy(void* dst, const void* src, uint32_t size) {
+    ASSERT(dst != NULL && src != NULL);
 
-uint32_t strlen(const char* str)
-{
-    ASSERT(str != NULL);
-    const char* ptr = str;
-    while(*(ptr++));
-    return (ptr - str - 1);  //这里是由于当ptr指向'\0'时，ptr还会加1，所以要减去1
-}
+    uint8_t* _dst = (uint8_t*)dst;
+    const uint8_t* _src = (uint8_t*)src;
 
-int8_t strcmp(const char* a,const char* b)
-{
-    ASSERT(a != NULL && b != NULL);
-    while(*a && *a == *b)
-    {
-        a++,b++;
+    while (size-- > 0) {
+        *_dst++ = _src++;
     }
-    return (*a < *b) ? -1 : (*a > *b) ;
 }
 
-char* strchr(const char* str,const char ch)
-{
+/**
+ * 字符串比较,如果左边大于右边,返回1,相等返回0,否则-1.
+ */
+int memcmp(const void* left, const void* right, uint32_t size) {
+    ASSERT(left != NULL && right != NULL);
+
+    const uint8_t* _left = (uint8_t*)left;
+    const uint8_t* _right = (uint8_t*)right;
+
+    while (size-- > 0 && *_left++ == *_right);
+
+    if (size == 0) return 0;
+
+    return (*_left > *_right ? 1 : -1);
+}
+
+char* strcpy(char* dst, const char* src) {
+    ASSERT(dst != NULL && src != NULL);
+
+    char* head = dst;
+
+    while ((*dst++ = *src++));
+
+    return head;
+}
+
+uint32_t strlen(const char* str) {
     ASSERT(str != NULL);
-    while(*str)
-    {
-        if(*str == ch)    return (char*)str;
+
+    uint32_t count = 0;
+    while (*str++) {
+        ++count;
+    }
+
+    return count;
+}
+
+/**
+ * 如果左边大于右边返回1.
+ */
+int8_t strcmp(const char* left, const char* right) {
+    ASSERT(left != NULL && right != NULL);
+
+    while (*left != 0 && *left == *right) {
+        ++left;
+        ++right;
+    }
+
+    return (*left < *right ? -1 : *left > *right);
+}
+
+char* strchr(const char* str, const uint8_t c) {
+    ASSERT(str != NULL);
+
+    uint8_t item;
+    while ((item = *str) != 0) {
+        if (item == c) {
+            return (char*)str;
+        }
+
         ++str;
     }
+
     return NULL;
 }
 
-char* strrchr(const char* str,const uint8_t ch)
-{
+/**
+ * 倒序查找.
+ */
+char* strrchr(const char* str, const uint8_t c) {
     ASSERT(str != NULL);
-    char* last_chrptr = NULL;
-    while(*str != 0)
-    {
-        if(ch == *str)    last_chrptr = (char*)str;
-        str++;
+
+    const char* last_pos = NULL;
+
+    char item;
+    while ((item = *str) != 0) {
+        if (item == c) {
+            last_pos = str;
+        }
     }
-    return last_chrptr;
+
+    return last_pos;
 }
 
-char* strcat(char* dsc_,const char* src_)
-{
-    ASSERT(dsc_ != NULL && src_ != NULL);
-    char* str = dsc_;
-    while(*(str++));
-    str--;
-    while((*(str++) = *(src_++)) != 0);
-    return dsc_;
+/**
+ * 字符串拼接.
+ */
+char* strcat(char* dst, const char* src) {
+    ASSERT(dst != NULL && src != NULL);
+
+    const char* head = dst;
+
+    while (*dst++);
+    --dst;
+
+    while ((*dst++ = *src++));
+
+    return head;
 }
 
-uint32_t strchrs(const char* str,uint8_t ch)
-{
+/**
+ * 统计制定的字符在字符串中出现的次数.
+ */
+uint32_t strchrs(const char* str, const uint8_t c) {
     ASSERT(str != NULL);
-    uint32_t ch_cnt = 0;
-    while(*str)
-    {
-        if(*str == ch) ++ch_cnt;
+
+    uint32_t result = 0;
+
+    char item;
+    while ((item = *str) != 0) {
+        if (item == c) {
+            ++result;
+        }
         ++str;
     }
-    return ch_cnt;
+
+    return result;
 }

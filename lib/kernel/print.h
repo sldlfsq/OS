@@ -1,8 +1,8 @@
 #ifndef __LIB_KERNEL_PRINT_H
 #define __LIB_KERNEL_PRINT_H
 #include "stdint.h"
-void put_char(const char char_asci);
-void put_str(const char* char_asci);
+void put_char(char char_asci);
+void put_str(char* char_asci);
 void put_int(uint32_t num);  // 以16进制打印
 
 #endif

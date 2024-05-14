@@ -7,10 +7,10 @@ typedef void (*thread_func)(void*);
 
 /* 进程或线程状态 */
 enum task_status {
-    TASK_RUNNING,        //运行态
-    TASK_READY,          //就绪态
-    TASK_BLOCKED,        //阻塞态
-    TASK_WAITING,
+    TASK_RUNNING,  // 运行态
+    TASK_READY,  // 就绪态
+    TASK_BLOCKED,  // 阻塞态
+    TASK_WAITTING,
     TASK_HANGING,
     TASK_DIED
 };
@@ -119,4 +119,7 @@ struct task_struct* running_thread_pcb(void);
 void schedule(void);
 void schedule_irq(uint8_t vec_nr);
 void thread_init(void);
+
+void thread_block(enum task_status status);
+void thread_unblock(struct task_struct* pthread);
 #endif
