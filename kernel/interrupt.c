@@ -4,7 +4,7 @@
 # include "interrupt.h"
 # include "kernel/print.h"
 
-# define IDT_DESC_CNT 0x21
+# define IDT_DESC_CNT 0x30
 # define PIC_M_CTRL 0x20
 # define PIC_M_DATA 0x21
 # define PIC_S_CTRL 0xa0
@@ -23,7 +23,7 @@ struct gate_desc {
 
 /**
  * 中断的名称.
- */ 
+ */
 char* intr_name[IDT_DESC_CNT];
 intr_handler idt_table[IDT_DESC_CNT];
 static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler function);
@@ -34,7 +34,7 @@ extern intr_handler intr_entry_table[IDT_DESC_CNT];
 
 /**
  * 开中断并返回之前的状态.
- */ 
+ */
 enum intr_status intr_enable() {
     enum intr_status old_status;
     if (INTR_ON == intr_get_status()) {
@@ -64,7 +64,7 @@ enum intr_status intr_disable() {
 
 /**
  * 获取中断状态.
- */ 
+ */
 enum intr_status intr_get_status() {
     uint32_t eflags = 0;
     GET_EFLAGS(eflags);
@@ -77,7 +77,7 @@ enum intr_status intr_set_status(enum intr_status status) {
 
 /**
  * 通用的中断处理函数.
- */ 
+ */
 static void general_intr_handler(uint8_t vec_nr) {
     if (vec_nr == 0x27 || vec_nr == 0x2f) {
         // 伪中断，无需处理
@@ -125,7 +125,7 @@ static void exception_handler_init(void) {
 
 /**
  * 设置需要自定义的中断名称.
- */ 
+ */
 static void init_custom_handler_name() {
     intr_name[0] = "#DE Divide Error";
     intr_name[1] = "#DB Debug Exception";
@@ -150,7 +150,7 @@ static void init_custom_handler_name() {
 
 /**
  * 创建中断门描述符.
- */ 
+ */
 static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler function) {
     p_gdesc->func_offset_low_word = (uint32_t) function & 0x0000FFFF;
     p_gdesc->selector = SELECTOR_K_CODE;
@@ -161,7 +161,7 @@ static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler 
 
 /**
  * 初始化中断描述符表.
- */ 
+ */
 static void idt_desc_init(void) {
     int i;
     for (i = 0; i < IDT_DESC_CNT; i++) {
@@ -184,7 +184,7 @@ static void pic_init(void) {
     outb(PIC_S_DATA, 0x02);
     outb(PIC_S_DATA, 0x01);
 
-    outb(PIC_M_DATA, 0xfe);
+    outb(PIC_M_DATA, 0xfc);   //打开键盘中断和时钟中断
     outb(PIC_S_DATA, 0xff);
 
     put_str("pic_init done.\n");

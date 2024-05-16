@@ -12,4 +12,5 @@ void init_all() {
     thread_init();
     timer_init();
     console_init();
+    keyboard_init();
 }
